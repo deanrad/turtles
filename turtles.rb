@@ -27,9 +27,17 @@ module Turtles
 
   # For this thread of execution, the last chain of turtle calls, defined as
   # a chain that starts from an object, and goes through 0 or more instances
-  # of NilClass
-  def last_chain
+  # of NilClass. This is self-clearing by default - in other words, once
+  # asked for, the caller is the only one with a reference to the array
+  def last_chain( preserve=false )
     Thread.current[:turtle_chain] ||= []
+    if preserve
+      Thread.current[:turtle_chain]
+    else
+      old = Thread.current[:turtle_chain].dup
+      Thread.current[:turtle_chain] = nil
+      old
+    end
   end
   module_function :last_chain
   
@@ -40,12 +48,22 @@ module Turtles
 
       # initialize the stack when called on an object not returned by turtles
       unless self.respond_to?( '__made_by_turtles' )
-        Turtles.last_chain.clear
+        Turtles.last_chain(true).clear
       end
-      Turtles.last_chain.push sym
+      Turtles.last_chain(true).push sym
 
       def nil.__made_by_turtles; true; end
-      def nil.turtle_chain; Turtles.last_chain.map(&:to_s); end
+
+      # returns the TurtleChain and reverts nil 
+      def nil.turtle_chain
+        c = Turtles.last_chain
+        nil.metaclass.instance_eval do
+          undef_method :__made_by_turtles if method_defined? :__made_by_turtles
+          undef_method :turtle_chain if method_defined? :turtle_chain
+        end
+        c
+      end
+      nil
     else
       method_missing_without_turtles(sym, *args, &block)
     end

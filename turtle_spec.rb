@@ -74,7 +74,9 @@ describe Turtles, "Basic Behavior" do
     end
     turtles?.should == false
   end
+end
 
+describe Turtles, "Chaining" do
   it 'should give you access to the most recent turtle-chain in the thread' do
     (c = ParentWithTurtles.new).foo.should == nil
     Turtles.last_chain.should == [:foo]
@@ -89,17 +91,20 @@ describe Turtles, "Basic Behavior" do
     c.shoo.moo.goo.gai.pan.should == nil
     Turtles.last_chain.should == [:shoo, :moo, :goo, :gai, :pan]
 
-    # an edge case is that if we start a new chain from nil directly, rather
-    # than an object, Turtles is unaware were on a new chain. The workaround is
-    # to delimit such cases in a with_turtles block if that may be the case
-    with_turtles{
-      nil.floo.moo.goo.gai.pan.should == nil
-      Turtles.last_chain.should == [:floo, :moo, :goo, :gai, :pan]
-    }
+    nil.floo.moo.goo.gai.pan.should == nil
+    Turtles.last_chain.should == [:floo, :moo, :goo, :gai, :pan]
 
-    c.groo.moo.goo.turtle_chain.join(".").should == "groo.moo.goo"
-    c.oorg.moo.goo.turtle_chain.join("/").should == "oorg/moo/goo"
+    c.groo.moo.goo.turtle_chain.map(&:to_s).join(".").should == "groo.moo.goo"
+    nil.oorg.moo.goo.turtle_chain.map(&:to_s).join("/").should == "oorg/moo/goo"
+  end
 
+  it 'should preserve marshalability of nil' do
+    # Objects with singleton methods are not normally marshalable. Prove that ours 
+    # remains marshalable. (This is due, I think, to NilClass' impl. of Marshal).
+    Marshal.dump( nil ).should_not be_nil
+    nil.foo.moo.should == nil # set up our singleton methods
+    Marshal.dump( nil ).should_not be_nil
+    nil.turtle_chain.should == [:foo, :moo]
   end
 end
 
