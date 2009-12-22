@@ -9,6 +9,9 @@ require 'active_support/core_ext'
 
 module Turtles
   def self.included(base)
+    # NilClass becomes (and stays) turtlized upon including Turtles into some class
+    NilClass.send(:include,Turtles) unless NilClass.ancestors.include?(Turtles)
+
     base.class_eval do
       alias_method :method_missing_without_turtles, :method_missing
       alias_method :method_missing, :method_missing_with_turtles      
@@ -32,13 +35,13 @@ module Turtles
   # to indicate that it is a turtle nil. Note: nil still has all the happy
   # nil properties, just a few extra !!
   def turtlize_nil!
-    def nil.__made_by_turtles; true; end
+    def nil.__hecho_por_tortugas; true; end
 
     # Returns the turtle chain in lexographical order and unmods nil 
     def nil.turtle_chain
       c = Turtles.last_chain
       nil.metaclass.instance_eval do
-        undef_method :__made_by_turtles if method_defined? :__made_by_turtles
+        undef_method :__hecho_por_tortugas if method_defined? :__hecho_por_tortugas
         undef_method :turtle_chain if method_defined? :turtle_chain
         undef_method :turtle_eval if method_defined? :turtle_eval
       end
@@ -96,10 +99,10 @@ module Turtles
   # When we return nil through turtles, we add a singleton method on it to
   # mark it so we can build up a memory of the last call chain
   def method_missing_with_turtles(sym, *args, &block)
-    if self.class.turtles?
+    if self.class.turtles? || self == nil
 
       # initialize the stack when called on an object not returned by turtles
-      unless self.respond_to?( '__made_by_turtles' )
+      unless self.respond_to?(:__hecho_por_tortugas)
         Turtles.last_chain(true).clear
         Turtles.turtle_root = self
       end
@@ -114,10 +117,11 @@ module Turtles
 
 end
 
-# By default nil gets turtlized when this module is required
-class NilClass
-  include Turtles # ; turtles!
-end
+# By default nil gets turtlized when this module is required. 
+# Comment out if this is not desired behavior
+#NilClass.class_eval do
+#   include Turtles; # thus enabling it
+#end
 
 def turtles?
   NilClass.turtles?
@@ -129,11 +133,11 @@ end
 
 def no_turtles!
   NilClass.no_turtles!
+  # NilClass.uninclude(Turtles) # for which versions of ruby/rails can you uninclude Modules
 end
 
-# Also becomes a tool to narrow the scope for a turtle chain
+# Serves as a tool to narrow the scope for turtles and the thread-local turtle chain
 def with_turtles
-  Turtles.last_chain.clear
   already_turtles = turtles?
   turtles!
   begin

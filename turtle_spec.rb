@@ -18,6 +18,40 @@ def break_something!
   raise RuntimeError, "Oops! I bwoke something!"
 end
 
+  class Parent;                                                    end
+  class ParentWithTurtles < Parent;    include Turtles; turtles!;  end
+
+  class ParentWithoutTurtles < Parent;                             end
+  class ChildOfTurtledParent < ParentWithTurtles;                  end
+  class ChildOfTurtledParent2 < ParentWithTurtles;                 end
+  class ChildOfTurtlelessParent < ParentWithoutTurtles;            end
+  class ChildOfTurtledParentMM < ParentWithTurtles                
+    def method_missing(name, *args, &block)
+      if name.to_s.length==1
+        "MM: #{name}"
+      else
+        super
+      end
+    end
+  end
+
+  # A class which does not explicitly define turtle_eval (should not blow up)
+  class NoTurtleEval
+    include Turtles; 
+  end
+  # A class which explicitly defines turtle_eval
+  class HasTurtleEval < NoTurtleEval
+    def turtle_eval(ch); ch ;end
+  end
+  # A class which has a different function to use as turtle_eval
+  class HasTurtleEvalAltMethod < NoTurtleEval
+    self.turtle_evaluator = :other_fn
+    def other_fn(ch); "other fn: " + ch.map(&:to_s).join("."); end
+  end
+
+# Im not sure I like what these legacy tests are doing, but Im leaving them in
+# for now. Philsophically I think global turtling is bad, and prefer to take 
+# care of it class based (or inside with_turtles blocks) - DeanR 12/22/09
 describe Turtles, "Basic Behavior" do
   before(:each) do
     @foo = Foo.new
@@ -78,80 +112,44 @@ end
 
 describe Turtles, "Chaining" do
 
-  # A class which does not explicitly define turtle_eval (should not blow up)
-  class NoTurtleEval
-    include Turtles; turtles! 
-  end
-  # A class which explicitly defines turtle_eval
-  class CanEvalTurtles < NoTurtleEval
-    def turtle_eval(ch); ch ;end
-  end
-  # A class which has a different function to use as turtle_eval
-  class CanEvalTurtlesAltMethod < NoTurtleEval
-    self.turtle_evaluator = :other_fn
-    def other_fn(ch); "other fn: " + ch.map(&:to_s).join("."); end
-  end
-
-  it 'should give you access to the most recent turtle-chain in the thread' do
-    (c = ParentWithTurtles.new).foo.should == nil
-    Turtles.last_chain.should == [:foo]
-
-    c.moo.should == nil
-    Turtles.last_chain.should == [:moo]
-
-    turtles!
-    c.foo.moo.goo.gai.pan.should == nil
-    Turtles.last_chain.should == [:foo, :moo, :goo, :gai, :pan]
-    
-    c.shoo.moo.goo.gai.pan.should == nil
-    Turtles.last_chain.should == [:shoo, :moo, :goo, :gai, :pan]
-
-    nil.floo.moo.goo.gai.pan.should == nil
-    Turtles.last_chain.should == [:floo, :moo, :goo, :gai, :pan]
-
-    c.groo.moo.goo.turtle_chain.map(&:to_s).join(".").should == "groo.moo.goo"
-    nil.oorg.moo.goo.turtle_chain.map(&:to_s).join("/").should == "oorg/moo/goo"
-  end
-
   it 'should let you call eval_turtles! without an explicit turtle_eval function in your class' do
     t = NoTurtleEval.new
     t.moo.foo.eval_turtles!.should == [:moo, :foo]
   end
 
   it 'should let you call eval_turtles! with an explicit turtle_eval function in your class' do
-    t = CanEvalTurtles.new
+    t = HasTurtleEval.new
     t.moo.foo.eval_turtles!.should == [:moo, :foo]
   end
 
+  it 'should allow classes to define an alternate turtle_eval method' do
+    t = HasTurtleEvalAltMethod.new
+    t.moo.foo.eval_turtles!.should == "other fn: moo.foo"
+  end
+
   it 'should let you preprocess the turtle chain with a block' do
-    t = CanEvalTurtles.new
+    t = NoTurtleEval.new
     t.moo.foo.eval_turtles!{ |c| c.map(&:to_s).join(".") }.should == "moo.foo"
   end
 
-  it 'should allow classes to define an alternate turtle_eval method' do
-    t = CanEvalTurtlesAltMethod.new
-    t.moo.foo.eval_turtles!.should == "other fn: moo.foo"
+  it 'should allow you to retrieve the turtle-chain as an array of symbols' do
+    (c = ParentWithTurtles.new).foo.should == nil
+    Turtles.last_chain.should == [:foo]
+    Turtles.last_chain.should == [] # its gone now, since we retrieved it
+
+    c.moo.should == nil
+    Turtles.last_chain.should == [:moo]
+
+    c.foo.moo.goo.gai.pan.should == nil
+    Turtles.last_chain.should == [:foo, :moo, :goo, :gai, :pan]
+    
+    c.shoo.moo.goo.gai.pan.turtle_chain.should == [:shoo, :moo, :goo, :gai, :pan]
+    Turtles.last_chain.should == [] # retrieving through .turtle_chain is equivalent
   end
 
 end
 
 describe Turtles, "Inheritance Use Cases" do
-  class Parent;                                                    end
-  class ParentWithTurtles < Parent;    include Turtles; turtles!;  end
-
-  class ParentWithoutTurtles < Parent;                             end
-  class ChildOfTurtledParent < ParentWithTurtles;                  end
-  class ChildOfTurtledParent2 < ParentWithTurtles;                 end
-  class ChildOfTurtlelessParent < ParentWithoutTurtles;            end
-  class ChildOfTurtledParentMM < ParentWithTurtles                
-    def method_missing(name, *args, &block)
-      if name.to_s.length==1
-        "MM: #{name}"
-      else
-        super
-      end
-    end
-  end
     
   it 'should have enabled turtles in ParentWithTurtles' do
     ParentWithTurtles.turtles?.should == true

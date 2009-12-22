@@ -1,52 +1,89 @@
 Turtles ! (All the way down)
 
-Get rid of the tired old  (obj && obj.method) syntax.
+Get rid of the tired old (obj && obj.method) syntax. Don't let the fact that your
+objects use semi-structured data like XML or nested hashes clutter your code with
+conditionality. Increase performance by pruning garbage-creating intermediate 
+evaluations where possible. 
 
-Consolidate, standardize and DRY up all code relating to conditional 
-traversal of possibly incomplete object graphs. Why the name turtles ? 
+Why the name turtles ? 
 See the old-world story here: http://en.wikipedia.org/wiki/Turtles_all_the_way_down
 
+The main use case:
+
 Turtles, copied originally from some site I currently don't have the URL for, 
-performs returns nil instead of raising MethodMissing for objects that are in
-the turtle scope. In addition it tracks a call chain of turtles, allowing you
+returns nil instead of raising MethodMissing for objects that are in the (configurable)
+turtle scope. In addition it tracks a call chain of turtles, allowing you
 to turn obtain the string "m1.m2.m0" from a call chain of obj.m1.m2.m0, none 
-of which were methods defined on the original object.
+of which were methods defined on the original object, and decide to process the 
+chain all at once (by creating an xpath if you like) instead of incrementally.
 
 For classes that wrap semi-structured data, like XML-backed classes, the Turtles
-paradigm lets you do duck-typing, ask for nodes deeper in the heirarchy
+paradigm lets you defer the evaluation of a call of methods until the end, at a 
+minimum of overhead at each intermediate step.
+
+Thus a query over an object backed by XML of :
+<a>
+  <b>
+    <c d="val"/>
+  </b>
+</a>
+
+may be represented unconditionally as
+
+the_val = obj.a.b.c.d
+
+even in cases where the intermediate node b may be absent, in which case nil is returned
+without error. Your object can recieve the chain [:a, :b, :c, :d] as an argument to one
+
+the_val = obj.a.b.c.d.eval_turtles! # Calls obj.turtle_eval( [:a, :b, :c, :d] )
+
+In which you may resolve to an xpath for an all-at-once query, or do whatever you like.
+The name is reconfigurable at the class level.
 
 The scoping options are: for a class
 
   class Foo
-    include Turtles; turtles!
+    include Turtles
   end
 
   f = Foo.new
-  f.m0.m1.m2  # nil, does not raise
+  f.m0.m1.m2  # nil, does not raise, even in subclasses of Foo
 
 For the entire program (be careful if using this, its like swatting a fly with
 a sledgehammer):
 
-  include Turtles
-  turtles!
+  include Turtles # in the global scope eg Object or Kernel
 
 Within a block:
 
-  include Turtles
   with_turtles{ 
     obj.m0.m1.m2  # nil, does not raise
   }
 
-A unique feature of this particular Ruby turtle implementation is the ability to 
-get the last chain of turtles:
 
-  obj.m1.m2.m3.turtle_chain  # returns [:m1, :m2, :m3]
+To define a different method to be the reciever of the turtle chain when eval_turtles! is called:
 
-This is an array, stored per-thread in your application, of method names in
-lexographical-order (NOT evaluation-order). Its accessible through turtle_chain
-as shown above or through Turtles.last_chain, and is cleared once asked for.
+class Obj
+  include Turtles
+  self.turtle_evaluator = :xpath_query
 
-See the spec file for other use cases including passing the value of the chain
-to the root, example:
+  def xpath_query( chain ); self.query( '//' + chain.map(&:to_s).join('/') ) ; end
+end
 
-  obj.m1.m2.m3.eval_turtles! # invokes obj.turtle_eval( [:m1, :m2, :m3] )
+(o = Obj.new).foo.goo.eval_turtles! # calls o.xpath_query( [:foo, :goo] )
+
+Note: Once a single class in your process has done an include Turtles, the NilClass
+will be turtled throughout the process. The way around this is to explicitly use
+with_turtles blocks around code where you want turtling behavior to occur. 
+(This should move to thread-local turtle settings)
+
+See the spec file for other use cases.
+
+And enjoy turtling ! 
+
+http://www.youtube.com/watch?v=ezAJeaCySV4 - Dana Carvey
+http://www.youtube.com/watch?v=CMNry4PE93Y - I like turtles kid
+
+Dean
+
+
