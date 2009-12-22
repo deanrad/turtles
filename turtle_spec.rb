@@ -77,6 +77,21 @@ describe Turtles, "Basic Behavior" do
 end
 
 describe Turtles, "Chaining" do
+
+  # A class which does not explicitly define turtle_eval (should not blow up)
+  class NoTurtleEval
+    include Turtles; turtles! 
+  end
+  # A class which explicitly defines turtle_eval
+  class CanEvalTurtles < NoTurtleEval
+    def turtle_eval(ch); ch ;end
+  end
+  # A class which has a different function to use as turtle_eval
+  class CanEvalTurtlesAltMethod < NoTurtleEval
+    self.turtle_evaluator = :other_fn
+    def other_fn(ch); "other fn: " + ch.map(&:to_s).join("."); end
+  end
+
   it 'should give you access to the most recent turtle-chain in the thread' do
     (c = ParentWithTurtles.new).foo.should == nil
     Turtles.last_chain.should == [:foo]
@@ -98,19 +113,31 @@ describe Turtles, "Chaining" do
     nil.oorg.moo.goo.turtle_chain.map(&:to_s).join("/").should == "oorg/moo/goo"
   end
 
-  it 'should preserve marshalability of nil' do
-    # Objects with singleton methods are not normally marshalable. Prove that ours 
-    # remains marshalable. (This is due, I think, to NilClass' impl. of Marshal).
-    Marshal.dump( nil ).should_not be_nil
-    nil.foo.moo.should == nil # set up our singleton methods
-    Marshal.dump( nil ).should_not be_nil
-    nil.turtle_chain.should == [:foo, :moo]
+  it 'should let you call eval_turtles! without an explicit turtle_eval function in your class' do
+    t = NoTurtleEval.new
+    t.moo.foo.eval_turtles!.should == [:moo, :foo]
   end
+
+  it 'should let you call eval_turtles! with an explicit turtle_eval function in your class' do
+    t = CanEvalTurtles.new
+    t.moo.foo.eval_turtles!.should == [:moo, :foo]
+  end
+
+  it 'should let you preprocess the turtle chain with a block' do
+    t = CanEvalTurtles.new
+    t.moo.foo.eval_turtles!{ |c| c.map(&:to_s).join(".") }.should == "moo.foo"
+  end
+
+  it 'should allow classes to define an alternate turtle_eval method' do
+    t = CanEvalTurtlesAltMethod.new
+    t.moo.foo.eval_turtles!.should == "other fn: moo.foo"
+  end
+
 end
 
 describe Turtles, "Inheritance Use Cases" do
   class Parent;                                                    end
-  class ParentWithTurtles < Parent;    include Turtles;            end
+  class ParentWithTurtles < Parent;    include Turtles; turtles!;  end
 
   class ParentWithoutTurtles < Parent;                             end
   class ChildOfTurtledParent < ParentWithTurtles;                  end

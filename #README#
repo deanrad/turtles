@@ -1,0 +1,47 @@
+Turtles ! (All the way down)
+
+Get rid of the tired old  (obj && obj.method) syntax.
+
+Consolidate, standardize and DRY up all code relating to conditional 
+traversal of possibly incomplete object graphs. Why the name turtles ? 
+See the old-world story here: http://en.wikipedia.org/wiki/Turtles_all_the_way_down
+
+Turtles, copied originally from some site I currently don't have the URL for, 
+performs returns nil instead of raising MethodMissing for objects that are in
+the turtle scope. In addition it tracks a call chain of turtles, allowing you
+to turn obtain the string "m1.m2.m0" from a call chain of obj.m1.m2.m0, none 
+of which were methods defined on the original object.
+
+For classes that wrap semi-structured data, like XML-backed classes, the Turtles
+paradigm lets you do duck-typing, ask for nodes deeper in the heirarchy
+
+The scoping options are: for a class
+
+  class Foo
+    include Turtles; turtles!
+  end
+
+  f = Foo.new
+  f.m0.m1.m2  # nil, does not raise
+
+For the entire program (be careful if using this, its like swatting a fly with
+a sledgehammer):
+
+  include Turtles
+  turtles!
+
+Within a block:
+
+  include Turtles
+  with_turtles{ 
+    obj.m0.m1.m2  # nil, does not raise
+  }
+
+A unique feature of this particular Ruby turtle implementation is the ability to 
+get the last chain of turtles:
+
+  obj.m1.m2.m3.turtle_chain  # returns [:m1, :m2, :m3]
+
+This is an array, stored per-thread in your application, of method names in
+lexographical-order (NOT evaluation-order). Its accessible through turtle_chain
+as shown above or through Turtles.last_chain, and is cleared once asked for.

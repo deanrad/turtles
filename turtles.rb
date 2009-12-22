@@ -19,16 +19,51 @@ module Turtles
       def self.turtles!;        self.turtles = true  ; end
       def self.no_turtles!;     self.turtles = false ; end
       def self.turtles?;     !! self.turtles         ; end
+
+      class_inheritable_accessor :turtle_evaluator
+      self.turtle_evaluator = :turtle_eval #overridable
     end
 
     # Turtles are enabled by default upon inclusion
     base.turtles!
   end
 
+  # Adds methods to the metaclass of the singleton instance of NilClass
+  # to indicate that it is a turtle nil. Note: nil still has all the happy
+  # nil properties, just a few extra !!
+  def turtlize_nil!
+    def nil.__made_by_turtles; true; end
+
+    # Returns the turtle chain in lexographical order and unmods nil 
+    def nil.turtle_chain
+      c = Turtles.last_chain
+      nil.metaclass.instance_eval do
+        undef_method :__made_by_turtles if method_defined? :__made_by_turtles
+        undef_method :turtle_chain if method_defined? :turtle_chain
+        undef_method :turtle_eval if method_defined? :turtle_eval
+      end
+      c
+    end
+
+    # Sends the value of the turtle_chain to the given method on the turtle_root
+    # object (by default turtle_eval). Optional block preprocesses the chain.
+    def nil.eval_turtles!( &block )
+      root = Turtles.turtle_root
+      c = Turtles.last_chain
+      if block_given?
+        c = block.call(c)
+      end
+      result = root.send(root.class.turtle_evaluator, c)
+      Turtles.turtle_root = nil
+      result
+    end
+  end
+  private :turtlize_nil!
+
   # For this thread of execution, the last chain of turtle calls, defined as
   # a chain that starts from an object, and goes through 0 or more instances
   # of NilClass. This is self-clearing by default - in other words, once
-  # asked for, the caller is the only one with a reference to the array
+  # asked for, the caller is the only one with a reference to the array.
   def last_chain( preserve=false )
     Thread.current[:turtle_chain] ||= []
     if preserve
@@ -40,7 +75,24 @@ module Turtles
     end
   end
   module_function :last_chain
-  
+
+  # Defines the root object of a chain of turtle calls. 
+  # Set when a chain of calls on a non-turtlized nil object is initiated.
+  def turtle_root
+    Thread.current[:turtle_root]
+  end
+  def turtle_root= obj
+    Thread.current[:turtle_root] = obj
+  end
+  module_function :turtle_root, :turtle_root=
+
+  # Defines a method, overridable in callers, which will recieve
+  # the value of the chain- example [:m0, :m1, :m2], and return it by default
+  # obj.m0.m1.m2.eval_turtles!
+  def turtle_eval( chain, &block )
+    chain
+  end
+
   # When we return nil through turtles, we add a singleton method on it to
   # mark it so we can build up a memory of the last call chain
   def method_missing_with_turtles(sym, *args, &block)
@@ -49,20 +101,11 @@ module Turtles
       # initialize the stack when called on an object not returned by turtles
       unless self.respond_to?( '__made_by_turtles' )
         Turtles.last_chain(true).clear
+        Turtles.turtle_root = self
       end
       Turtles.last_chain(true).push sym
 
-      def nil.__made_by_turtles; true; end
-
-      # returns the TurtleChain and reverts nil 
-      def nil.turtle_chain
-        c = Turtles.last_chain
-        nil.metaclass.instance_eval do
-          undef_method :__made_by_turtles if method_defined? :__made_by_turtles
-          undef_method :turtle_chain if method_defined? :turtle_chain
-        end
-        c
-      end
+      turtlize_nil!
       nil
     else
       method_missing_without_turtles(sym, *args, &block)
@@ -71,10 +114,9 @@ module Turtles
 
 end
 
-# From here on out, the turtles? accessors are merged into Kernel/Object
-
+# By default nil gets turtlized when this module is required
 class NilClass
-  include Turtles
+  include Turtles # ; turtles!
 end
 
 def turtles?
