@@ -41,3 +41,12 @@ A unique feature of this particular Ruby turtle implementation is the ability to
 get the last chain of turtles:
 
   obj.m1.m2.m3.turtle_chain  # returns [:m1, :m2, :m3]
+
+This is an array, stored per-thread in your application, of method names in
+lexographical-order (NOT evaluation-order). Its accessible through turtle_chain
+as shown above or through Turtles.last_chain, and is cleared once asked for.
+
+See the spec file for other use cases including passing the value of the chain
+to the root, example:
+
+  obj.m1.m2.m3.eval_turtles! # invokes obj.turtle_eval( [:m1, :m2, :m3] )
