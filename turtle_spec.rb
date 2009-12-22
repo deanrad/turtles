@@ -75,3 +75,52 @@ describe Turtles, "Basic Behavior" do
     turtles?.should == false
   end
 end
+
+describe Turtles, "Inheritance Use Cases" do
+  class Parent;                                                    end
+  class ParentWithTurtles < Parent;    include Turtles; turtles! ; end
+  class ParentWithoutTurtles < Parent;                             end
+  class ChildOfTurtledParent < ParentWithTurtles;                  end
+  class ChildOfTurtledParent2 < ParentWithTurtles;                 end
+  class ChildOfTurtlelessParent < ParentWithoutTurtles;            end
+  class ChildOfTurtledParentMM < ParentWithTurtles                
+    def method_missing(name, *args, &block)
+      if name.to_s.length==1
+        "MM: #{name}"
+      else
+        super
+      end
+    end
+  end
+    
+  before(:all) do
+    ParentWithTurtles.class_eval{ turtles! }
+  end
+
+  it 'should enable turtles in a child of a turtled parent' do
+    ct = ChildOfTurtledParent.new
+    ParentWithTurtles.turtles?.should == true
+    ct.class.turtles?.should == true
+  end
+
+  it 'should let a child class define method missing without parents turtles interfering' do 
+    cwmm = ChildOfTurtledParentMM.new
+    cwmm.fizoo.should == nil
+
+    # messages of length == 1 should be handled by child
+    cwmm.f.should == "MM: f"
+  end 
+
+  it "should keep descendent classes' values of turtles? be distinct" do
+    ChildOfTurtledParent.turtles?.should == true
+    ChildOfTurtledParent2.turtles?.should == true
+
+    ChildOfTurtledParent.no_turtles!
+
+    ChildOfTurtledParent.turtles?.should == false
+    pending "The use of class variables make child classes bound to their parents class implementation." do
+      ChildOfTurtledParent2.turtles?.should == true
+    end
+  end
+
+end
