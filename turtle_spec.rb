@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby -w
 #
 # No warranty. And definitely no refunds.
-#
+# Run this spec via spec --format specdoc turtle_spec.rb
 
 require 'turtles'
 
