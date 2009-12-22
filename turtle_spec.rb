@@ -74,6 +74,33 @@ describe Turtles, "Basic Behavior" do
     end
     turtles?.should == false
   end
+
+  it 'should give you access to the most recent turtle-chain in the thread' do
+    (c = ParentWithTurtles.new).foo.should == nil
+    Turtles.last_chain.should == [:foo]
+
+    c.moo.should == nil
+    Turtles.last_chain.should == [:moo]
+
+    turtles!
+    c.foo.moo.goo.gai.pan.should == nil
+    Turtles.last_chain.should == [:foo, :moo, :goo, :gai, :pan]
+    
+    c.shoo.moo.goo.gai.pan.should == nil
+    Turtles.last_chain.should == [:shoo, :moo, :goo, :gai, :pan]
+
+    # an edge case is that if we start a new chain from nil directly, rather
+    # than an object, Turtles is unaware were on a new chain. The workaround is
+    # to delimit such cases in a with_turtles block if that may be the case
+    with_turtles{
+      nil.floo.moo.goo.gai.pan.should == nil
+      Turtles.last_chain.should == [:floo, :moo, :goo, :gai, :pan]
+    }
+
+    c.groo.moo.goo.turtle_chain.join(".").should == "groo.moo.goo"
+    c.oorg.moo.goo.turtle_chain.join("/").should == "oorg/moo/goo"
+
+  end
 end
 
 describe Turtles, "Inheritance Use Cases" do

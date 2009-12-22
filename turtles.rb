@@ -25,15 +25,35 @@ module Turtles
     base.turtles!
   end
 
+  # For this thread of execution, the last chain of turtle calls, defined as
+  # a chain that starts from an object, and goes through 0 or more instances
+  # of NilClass
+  def last_chain
+    Thread.current[:turtle_chain] ||= []
+  end
+  module_function :last_chain
+  
+  # When we return nil through turtles, we add a singleton method on it to
+  # mark it so we can build up a memory of the last call chain
   def method_missing_with_turtles(sym, *args, &block)
     if self.class.turtles?
-      nil
+
+      # initialize the stack when called on an object not returned by turtles
+      unless self.respond_to?( '__made_by_turtles' )
+        Turtles.last_chain.clear
+      end
+      Turtles.last_chain.push sym
+
+      def nil.__made_by_turtles; true; end
+      def nil.turtle_chain; Turtles.last_chain.map(&:to_s); end
     else
       method_missing_without_turtles(sym, *args, &block)
     end
   end
 
 end
+
+# From here on out, the turtles? accessors are merged into Kernel/Object
 
 class NilClass
   include Turtles
@@ -51,7 +71,9 @@ def no_turtles!
   NilClass.no_turtles!
 end
 
+# Also becomes a tool to narrow the scope for a turtle chain
 def with_turtles
+  Turtles.last_chain.clear
   already_turtles = turtles?
   turtles!
   begin
