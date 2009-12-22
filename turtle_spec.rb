@@ -78,7 +78,8 @@ end
 
 describe Turtles, "Inheritance Use Cases" do
   class Parent;                                                    end
-  class ParentWithTurtles < Parent;    include Turtles; turtles! ; end
+  class ParentWithTurtles < Parent;    include Turtles;            end
+
   class ParentWithoutTurtles < Parent;                             end
   class ChildOfTurtledParent < ParentWithTurtles;                  end
   class ChildOfTurtledParent2 < ParentWithTurtles;                 end
@@ -93,8 +94,12 @@ describe Turtles, "Inheritance Use Cases" do
     end
   end
     
-  before(:all) do
-    ParentWithTurtles.class_eval{ turtles! }
+  it 'should have enabled turtles in ParentWithTurtles' do
+    ParentWithTurtles.turtles?.should == true
+  end
+
+  it 'should have enabled turtles in its descendents' do
+    ChildOfTurtledParent.turtles?.should == true
   end
 
   it 'should enable turtles in a child of a turtled parent' do
@@ -112,15 +117,11 @@ describe Turtles, "Inheritance Use Cases" do
   end 
 
   it "should keep descendent classes' values of turtles? be distinct" do
-    ChildOfTurtledParent.turtles?.should == true
-    ChildOfTurtledParent2.turtles?.should == true
+    [ParentWithTurtles, ChildOfTurtledParent, ChildOfTurtledParent2].map(&:turtles?).uniq.should == [true]
 
     ChildOfTurtledParent.no_turtles!
 
     ChildOfTurtledParent.turtles?.should == false
-    pending "The use of class variables make child classes bound to their parents class implementation." do
-      ChildOfTurtledParent2.turtles?.should == true
-    end
+    ChildOfTurtledParent2.turtles?.should == true
   end
-
 end

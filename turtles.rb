@@ -4,13 +4,25 @@
 #
 # turtles.rb - Implement Object#andand in a turtles_all_the_way_down fashion.
 
+# If you don't like this requirement, reimplement class_inheritable_accessor, et al. into your project
+require 'active_support/core_ext'
+
 module Turtles
   def self.included(base)
     base.class_eval do
-      extend ClassMethods
       alias_method :method_missing_without_turtles, :method_missing
       alias_method :method_missing, :method_missing_with_turtles      
+
+      # For a discussion of class_inheritable_accessor:
+      # http://www.raulparolari.com/Rails/class_inheritable
+      class_inheritable_accessor :turtles
+      def self.turtles!;        self.turtles = true  ; end
+      def self.no_turtles!;     self.turtles = false ; end
+      def self.turtles?;     !! self.turtles         ; end
     end
+
+    # Turtles are enabled by default upon inclusion
+    base.turtles!
   end
 
   def method_missing_with_turtles(sym, *args, &block)
@@ -21,26 +33,11 @@ module Turtles
     end
   end
 
-  module ClassMethods
-    def turtles!
-      @@enable_turtles = true
-    end
-    def no_turtles!
-      @@enable_turtles = false
-    end
-    def turtles?
-      @@enable_turtles ||= false
-    end
-    def turtles=(t)
-      @@enable_turtles = t
-    end
-  end
 end
 
 class NilClass
   include Turtles
 end
-
 
 def turtles?
   NilClass.turtles?
@@ -58,9 +55,10 @@ def with_turtles
   already_turtles = turtles?
   turtles!
   begin
-    x = yield
+    result = yield
   ensure
     no_turtles! unless already_turtles
   end
-  x
+  result
 end
+
