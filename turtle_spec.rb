@@ -147,6 +147,10 @@ describe Turtles, "Chaining" do
     Turtles.last_chain.should == [] # retrieving through .turtle_chain is equivalent
   end
 
+  # pending
+  # it 'should not provide turtling to nil class, outside of a turtle chain' do
+  #   lambda{ nil.foooo }.should raise_error
+  # end
 end
 
 describe Turtles, "Inheritance Use Cases" do

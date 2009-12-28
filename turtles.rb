@@ -27,8 +27,8 @@ module Turtles
       self.turtle_evaluator = :turtle_eval #overridable
     end
 
-    # Turtles are enabled by default upon inclusion
-    base.turtles!
+    # Turtles are enabled by default upon inclusion 
+    base.turtles! # this will have to be tweaked for NilClass
   end
 
   # Adds methods to the metaclass of the singleton instance of NilClass
